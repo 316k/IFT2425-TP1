@@ -1,6 +1,6 @@
 //------------------------------------------------------
 // module  : Tp-IFT2425-I.1.c
-// author  : 
+// author  : Guillaume Riou, Nicolas Hurtubise
 // date    : 
 // version : 1.0
 // language: C
@@ -307,6 +307,47 @@ void Egalise(float** img,int lgth,int wdth,int thresh)
                             img[i][j]=FnctRept[(int)(img[i][j])];
 }
 
+double y[] = {0.11, 0.24, 0.27, 0.52, 1.13, 1.54, 1.71, 1.84, 1.92, 2.01};
+int n = sizeof(y)/sizeof(double*);
+
+static inline double f(double cmv) {
+    double num = 0, denom = 0, logsum = 0;
+    double power, ln;
+    
+    for(int i=0; i<n; i++) {
+        power = pow(y[i], cmv);
+        ln = log(y[i]);
+        
+        num += power * ln;
+        denom += power;
+        logsum += ln;
+    }
+
+    return num/denom - 1/cmv - 1.0/n * logsum;
+}
+
+double epsilon = 1e-5;
+
+static inline double df(double cmv) {
+    return (f(cmv + epsilon) - f(cmv)) / epsilon;
+}
+
+/**
+ * cmv: Cégep du Montréal-Vieux
+ **/
+double alpha(double cmv) {
+    double power = 0;
+    
+    for(int i=0; i<n; i++) {
+        power += pow(y[i], cmv);
+    }
+
+    return pow(1.0/n * power, 1.0/cmv);
+}
+
+double w_chelou(double y, double c, double a) {
+    return c/a * pow(y / a, c - 1) * expf(- pow(y, c) / pow(a, c));
+}
 
 //----------------------------------------------------------
 //----------------------------------------------------------
@@ -339,17 +380,42 @@ int main(int argc,char** argv)
 // PROGRAMME ---------------------------------------------------------------------
 //--------------------------------------------------------------------------------
 
-    //Affichage dégradé de niveaux de gris dans Graph2D
-    for(int i=0;i<length;i++) for(int j=0;j<width;j++) Graph2D[i][j]=j/2.0;
-    
     //---------------------------
     //Algorithme NEWTON
     //---------------------------
     
     //implementer ici
+    double old_cmv, cmv = 0.25;
+
+    double tolerance = 1e-6;
     
+    do {
+        
+        old_cmv = cmv;
+        
+        printf("CORNICHONS %f ::: %f\n", cmv, df(cmv));
+        
+        cmv = cmv - f(cmv) / df(cmv);
+        
+    } while(!(fabsl(f(cmv)) < tolerance || fabsl(cmv - old_cmv) < tolerance));
     
+    printf("FIN : %f\n", cmv);
+
+    double a = alpha(cmv);
     
+    double val;
+    int hauteur;
+    
+    for(int i=0;i<width;i++) {
+        
+        val = w_chelou(i * 3.5/width, cmv, a);
+
+        printf("%.8f\n", val);
+        
+        hauteur = val * length / 1.6; // borne arbitraire pour visualiser
+        
+        Graph2D[length - hauteur - 1][i] = 1;
+    }
     
 //--------------------------------------------------------------------------------
 //---------------- visu sous XWINDOW ---------------------------------------------
